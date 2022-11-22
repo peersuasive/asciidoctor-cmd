@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+me="$(basename "$0")"
+img="asciidoctor/asciidoctor-cmd"
+base_dir="$(dirname $(readlink -f "$0"))"
+doc_dir="$(readlink -f "$PWD")"
+
+entrypoint=
+interactive=
+extensions=
+[[ "$1" == --interactive ]] && interactive=1 && shift
+[[ "$1" == --rebuild ]] && rebuild=1 && shift
+if ((interactive)); then
+    entrypoint="/bin/bash"
+elif [[ "$me" != "asciidoctor" ]]; then
+    entrypoint="$me"
+    extensions=("-r" "asciidoctor-diagram")
+fi
+if ! command -V docker &>/dev/null; then
+    echo "No docker command found. Can't run asciidoctor."
+    exit 1
+fi
+if ((rebuild)) || ! docker image list "$img" --format='{{.ID}}'|grep -q '.'; then
+    echo "(re)building required image..."
+    export GID=$(id -g)
+    export UID
+    if ! docker build --pull --no-cache -t "$img" --build-arg UID="$UID" --build-arg GID="$GID" -f "$base_dir"/Dockerfile . &>/dev/null; then
+        echo "Failed to build image. Can't run asciidoctor."
+        exit 1
+    fi
+    ((rebuild)) && exit 0
+fi
+
+set -o pipefail
+set -e
+set -u
+
+export UID
+export GID=$(id -g)
+
+exec docker run --rm \
+    --env UID="$UID" --env GID="$GID" \
+    -v "${doc_dir}":/documents:rw ${interactive:+-it} \
+    ${entrypoint:+--entrypoint "$entrypoint"} \
+    "$img" ${extensions:+${extensions[@]}} "$@"
+exit 1

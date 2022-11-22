@@ -1,0 +1,20 @@
+= asciidoctor for local user
+
+Based on https://github.com/asciidoctor/docker-asciidoctor["Official Image"].
+
+Run commands with user's UID/GID, including `asciidoctor-diagram` by default.
+
+== build
+----
+./asciidoctor --rebuild
+----
+
+== install
+
+Link asciidoctor, asciidoctor-pdf, asciidoctor-epub3 somewhere in `PATH`.
+
+Example, assuming `~/bin` exists:
+
+----
+for l in asciidoctor{,-pdf,-epub3}; do ln -s -- "$PWD"/asciidoctor ~/bin/"$l"; done
+----
